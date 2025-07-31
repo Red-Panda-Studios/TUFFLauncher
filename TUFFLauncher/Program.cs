@@ -361,6 +361,11 @@ static async Task DownloadBuild(string version)
         // Delete the zip file after extraction
         File.Delete(savePath);
         Console.WriteLine("Cleaned up temporary install archive.");
+        
+        if (version.Contains("hologrounds"))
+        {
+            await DownloadRecordings("hologrounds");
+        }
     }
     catch (Exception ex)
     {
@@ -368,6 +373,76 @@ static async Task DownloadBuild(string version)
     }
 }
 
+static async Task DownloadRecordings(string version)
+{
+    string downloadUrl = $"https://wulfcode.dev/RedPandaStudios/ToughCoded/releases/download/{version}/hologrounds_recordings.zip";
+    string recordingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        "AppData",
+        "LocalLow",
+        "LemonChili Games",
+        "ToughCodedNG",
+        "Recordings"
+    );
+    
+    Console.WriteLine($"\nDownloading: {downloadUrl}");
+
+    using HttpClient client = new HttpClient();
+
+    try
+    {
+        using var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+        var canReportProgress = totalBytes != -1;
+
+        string fileName = $"HologroundsRecordings{version}.zip";
+        string savePath = Path.Combine(recordingsPath, fileName);
+
+        Console.CursorVisible = false;
+
+        {
+            using var contentStream = await response.Content.ReadAsStreamAsync();
+            using var fileStream = File.Create(savePath);
+
+            var buffer = new byte[81920]; // 80 KB buffer
+            long totalRead = 0;
+            int read;
+
+            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await fileStream.WriteAsync(buffer, 0, read);
+                totalRead += read;
+
+                if (canReportProgress)
+                {
+                    DrawProgressBar(totalRead, totalBytes);
+                }
+            }
+        }
+
+        Console.WriteLine(); // Move to next line after progress bar
+        Console.CursorVisible = true;
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Download complete.");
+        Console.ResetColor();
+
+        string extractPath = Path.Combine(recordingsPath);
+
+        System.IO.Compression.ZipFile.ExtractToDirectory(savePath, extractPath, overwriteFiles: true);
+        Console.WriteLine("Extracted to: " + extractPath);
+        
+        // Delete the zip file after extraction
+        File.Delete(savePath);
+        Console.WriteLine("Cleaned up temporary install archive.");
+    }
+    catch (Exception ex)
+    {
+        ShowError($"Download failed: {ex.Message}");
+    }
+}
 static void DrawProgressBar(long bytesRead, long totalBytes)
 {
     const int barSize = 50;
