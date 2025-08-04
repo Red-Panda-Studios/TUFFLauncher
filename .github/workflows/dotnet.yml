@@ -44,4 +44,4 @@ jobs:
           name: "Release v${{ github.run_number }}"
           files: ${{ env.ZIP_NAME }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.TUFFTECH_TOKEN }}
