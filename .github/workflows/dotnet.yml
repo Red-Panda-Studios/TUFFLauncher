@@ -32,7 +32,7 @@ jobs:
 
       - name: Set versioned ZIP name
         id: vars
-        run: echo "ZIP_NAME=TUFFLauncher-v${{ github.run_number }}.zip" >> $GITHUB_ENV
+        run: echo "ZIP_NAME=TUFFLauncher-v${{ github.ref_name }}.zip" >> $GITHUB_ENV
 
       - name: Zip published output
         run: zip -r ${{ env.ZIP_NAME }} ./publish
