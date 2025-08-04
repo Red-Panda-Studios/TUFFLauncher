@@ -17,64 +17,77 @@ class Program
 
         while (true)
         {
-            Console.Clear();
-            
-            // Header
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("========================================");
-            Console.WriteLine("         TUFFTech Launcher              ");
-            Console.WriteLine("========================================");
-            Console.ResetColor();
-
-            // Menu
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("1. Download and Install Specific Build");
-            Console.WriteLine("2. Download and Install Latest Build");
-            Console.WriteLine("3. Launch an Installed Build");
-            Console.WriteLine("4. Uninstall a Build");
-            Console.WriteLine("5. Open Release Feed in Browser");
-            Console.WriteLine("6. Open Specific Build Release Page in Browser");
-            Console.WriteLine("7. Exit");
-            Console.ResetColor();
-            Console.Write("\nChoose an option: ");
-
-            string? input = Console.ReadLine();
-
-            switch (input)
-            {
-                case "1":
-                    await InstallPreferredBuild();
-                    break;
-                case "2":
-                    await InstallLatestBuild();
-                    break;
-                case "3":
-                    LaunchInstalledBuild();
-                    break;
-                case "4":
-                    UninstallBuild();
-                    break;
-                case "5":
-                    OpenFeedInBrowser();
-                    break;
-                case "6":
-                    await OpenReleasePageInBrowser();
-                    break;
-                case "7":
-                    return;
-                default:
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Invalid selection.");
-                    Console.ResetColor();
-                    break;
-            }
-
-            Console.WriteLine("\nPress Enter to continue...");
-            Console.ReadLine();
+            if (await DefaultMenu()) return;
         }
     }
-    
-    static async Task InstallPreferredBuild()
+
+    private static async Task<bool> DefaultMenu()
+    {
+        Console.Clear();
+            
+        // Header
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("========================================");
+        Console.WriteLine("         TUFFTech Launcher              ");
+        Console.WriteLine("========================================");
+        Console.ResetColor();
+
+        // Menu
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("1. Download and Install Latest Build");
+        Console.WriteLine("2. Download and Install Specific Build");
+        Console.WriteLine("3. Launch an Installed Build");
+        Console.WriteLine("4. Uninstall a Build");
+        Console.WriteLine("5. Open Release Feed in Browser");
+        Console.WriteLine("6. Open Specific Build Release Page in Browser");
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine("7. Additional Jockey Options");
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("8. Exit");
+
+        Console.ResetColor();
+        Console.Write("\nChoose an option: ");
+
+        string? input = Console.ReadLine();
+
+        switch (input)
+        {
+            case "1":
+                await InstallLatestBuild(false);
+                break;
+            case "2":
+                await InstallPreferredBuild(false);
+                break;
+            case "3":
+                LaunchInstalledBuild();
+                break;
+            case "4":
+                UninstallBuild();
+                break;
+            case "5":
+                OpenFeedInBrowser();
+                break;
+            case "6":
+                await OpenReleasePageInBrowser();
+                break;
+            case "7":
+                await JockeyMenu();
+                break;
+            case "8":
+                return true;
+            default:
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Invalid selection.");
+                Console.ResetColor();
+                break;
+        }
+
+        Console.WriteLine("\nPress Enter to continue...");
+        Console.ReadLine();
+        return false;
+    }
+
+    static async Task InstallPreferredBuild(bool console)
     {
         var items = await GetFeedItems();
         if (items == null || items.Length == 0)
@@ -95,7 +108,7 @@ class Program
         if (int.TryParse(Console.ReadLine(), out int index) && index >= 1 && index <= items.Length)
         {
             string version = ExtractVersion(items[index - 1].Title.Text);
-            await DownloadBuild(version);
+            await DownloadBuild(version, console);
         }
         else
         {
@@ -103,7 +116,7 @@ class Program
         }
     }
 
-    static async Task InstallLatestBuild()
+    static async Task InstallLatestBuild(bool console)
     {
         var items = await GetFeedItems();
         if (items == null || items.Length == 0)
@@ -113,7 +126,7 @@ class Program
         }
 
         string version = ExtractVersion(items[0].Title.Text);
-        await DownloadBuild(version);
+        await DownloadBuild(version, console);
     }
 
     static void LaunchInstalledBuild()
@@ -263,40 +276,201 @@ class Program
             ShowError("Invalid selection.");
         }
     }
-    
-    static async Task<SyndicationItem[]?> GetFeedItems()
+
+    static async Task JockeyMenu()
     {
+        Console.Clear();
+        // Header
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine("========================================");
+        Console.WriteLine("           Jockey Options               ");
+        Console.WriteLine("========================================");
+        Console.ResetColor();
+        
+        // Menu
+
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("✖. Download latest console build [Coming Soon]");
+        Console.WriteLine("✖. Download specific console build [Coming Soon]");
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("3. Download latest BroadcastServer build");
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("4. Exit");
+        
+        Console.ResetColor();
+        Console.Write("\nChoose an option: ");
+
+        string? input = Console.ReadLine();
+
+        switch (input)
+        {
+            case "1":
+                await InstallLatestBuild(true);
+                break;
+            case "2":
+                await InstallPreferredBuild(true);
+                break;
+            case "3":
+                await InstallLatestBroadcastServer();
+                break;
+            case "4":
+                return;
+            default:
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Invalid selection.");
+                Console.ResetColor();
+                break;
+        }
+
+        Console.WriteLine("\nPress Enter to continue...");
+        Console.ReadLine();
+    }
+    
+static async Task InstallLatestBroadcastServer()
+{
+    var items = await GetFeedItems();
+    if (items == null || items.Length == 0)
+    {
+        ShowError("No builds available.");
+        return;
+    }
+
+    using HttpClient client = new HttpClient();
+    string version = null;
+    string downloadUrl = null;
+
+    // Find the latest release that contains BroadcastServer.zip
+    foreach (var item in items)
+    {
+        version = ExtractVersion(item.Title.Text);
+        downloadUrl = $"https://wulfcode.dev/RedPandaStudios/ToughCoded/releases/download/{version}/BroadcastServer.zip";
+
         try
         {
-            using XmlReader reader = XmlReader.Create(_feedUrl);
-            SyndicationFeed feed = SyndicationFeed.Load(reader);
-
-            return feed.Items.ToArray();
+            using var checkResponse = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+            if (checkResponse.IsSuccessStatusCode)
+            {
+                break; // Found the valid download
+            }
         }
-        catch (Exception ex)
+        catch
         {
-            ShowError($"Error fetching RSS feed: {ex.Message}");
-            return null;
+            // Ignore and try the next one
         }
+
+        version = null;
+        downloadUrl = null;
     }
 
-    static string ExtractVersion(string title)
+    if (string.IsNullOrEmpty(downloadUrl))
     {
-        title = title.Trim();
-
-        if (title.StartsWith("Release "))
-            return title.Substring("Release ".Length);
-
-        if (title.Contains("Hologrounds", StringComparison.OrdinalIgnoreCase))
-            return "hologrounds";
-
-        // Add more mappings if needed
-        return title.Replace(":", "").Replace("(", "").Replace(")", "").Replace(" ", "_").ToLower();
+        ShowError("No valid BroadcastServer.zip found in recent releases.");
+        return;
     }
 
-static async Task DownloadBuild(string version)
+    Console.WriteLine($"\nDownloading: {downloadUrl}");
+
+    try
+    {
+        using var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+        var canReportProgress = totalBytes != -1;
+
+        string fileName = $"ToughCodedBroadcastServer{version}.zip";
+        string savePath = Path.Combine(_appFolder, fileName);
+
+        Console.CursorVisible = false;
+
+        using (var contentStream = await response.Content.ReadAsStreamAsync())
+        using (var fileStream = File.Create(savePath))
+        {
+            var buffer = new byte[81920]; // 80 KB
+            long totalRead = 0;
+            int read;
+
+            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await fileStream.WriteAsync(buffer, 0, read);
+                totalRead += read;
+
+                if (canReportProgress)
+                {
+                    DrawProgressBar(totalRead, totalBytes);
+                }
+            }
+        }
+
+        Console.WriteLine(); // End progress line
+        Console.CursorVisible = true;
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Download complete.");
+        Console.ResetColor();
+
+        string extractPath = Path.Combine(_appFolder, $"BroadcastServer{version}");
+        System.IO.Compression.ZipFile.ExtractToDirectory(savePath, extractPath, overwriteFiles: true);
+        Console.WriteLine("Extracted to: " + extractPath);
+
+        string exePath = Path.Combine(extractPath, "BroadcastServer", "BroadcastServer.exe");
+
+        if (File.Exists(exePath))
+        {
+            AddShortcut(exePath, $"ToughCoded Broadcast Server {version}");
+        }
+        else
+        {
+            ShowError("Executable not found. Shortcut not created.");
+        }
+
+        File.Delete(savePath);
+        Console.WriteLine("Cleaned up temporary install archive.");
+    }
+    catch (Exception ex)
+    {
+        ShowError($"Download failed: {ex.Message}");
+    }
+}
+
+    
+static async Task<SyndicationItem[]?> GetFeedItems()
 {
+    try
+    {
+        using XmlReader reader = XmlReader.Create(_feedUrl);
+        SyndicationFeed feed = SyndicationFeed.Load(reader);
+
+        return feed.Items.ToArray();
+    }
+    catch (Exception ex)
+    {
+        ShowError($"Error fetching RSS feed: {ex.Message}");
+        return null;
+    }
+}
+
+static string ExtractVersion(string title)
+{
+    title = title.Trim();
+
+    if (title.StartsWith("Release "))
+        return title.Substring("Release ".Length);
+
+    if (title.Contains("Hologrounds", StringComparison.OrdinalIgnoreCase))
+        return "hologrounds";
+
+    // Add more mappings if needed
+    return title.Replace(":", "").Replace("(", "").Replace(")", "").Replace(" ", "_").ToLower();
+}
+
+static async Task DownloadBuild(string version, bool console)
+{        
     string downloadUrl = $"https://wulfcode.dev/RedPandaStudios/ToughCoded/releases/download/{version}/tos88_online_win.zip";
+
+    if (console)
+    {
+        downloadUrl = $"https://wulfcode.dev/RedPandaStudios/ToughCoded/releases/download/{version}/tos88_console_win.zip";
+    }
 
     Console.WriteLine($"\nDownloading: {downloadUrl}");
 
@@ -311,6 +485,11 @@ static async Task DownloadBuild(string version)
         var canReportProgress = totalBytes != -1;
 
         string fileName = $"ToughCodedRelease{version}.zip";
+        if (console)
+        {
+            fileName = $"ToughCodedConsole{version}.zip";
+        }
+        
         string savePath = Path.Combine(_appFolder, fileName);
 
         Console.CursorVisible = false;
@@ -346,8 +525,13 @@ static async Task DownloadBuild(string version)
 
         System.IO.Compression.ZipFile.ExtractToDirectory(savePath, extractPath, overwriteFiles: true);
         Console.WriteLine("Extracted to: " + extractPath);
-
+        
         string exePath = Path.Combine(extractPath, "tos88_online_win", "tos88.exe");
+        if (console)
+        {
+            exePath = Path.Combine(extractPath, "tos88_console_win", "tos88.exe");
+        }
+
 
         if (File.Exists(exePath))
         {
@@ -456,31 +640,31 @@ static void DrawProgressBar(long bytesRead, long totalBytes)
     Console.Write($"] {progress:P1}");
 }
 
-    private static void AddShortcut(string exePath, string shortcutName)
-    {
-        string startMenu = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
-        string appStartMenu = Path.Combine(startMenu, "Programs", "ToughCoded");
+private static void AddShortcut(string exePath, string shortcutName)
+{
+    string startMenu = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
+    string appStartMenu = Path.Combine(startMenu, "Programs", "ToughCoded");
 
-        if (!Directory.Exists(appStartMenu))
-            Directory.CreateDirectory(appStartMenu);
+    if (!Directory.Exists(appStartMenu))
+        Directory.CreateDirectory(appStartMenu);
 
-        string shortcutLocation = Path.Combine(appStartMenu, $"{shortcutName}.lnk");
+    string shortcutLocation = Path.Combine(appStartMenu, $"{shortcutName}.lnk");
 
-        WshShell shell = new WshShell();
-        IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(shortcutLocation);
+    WshShell shell = new WshShell();
+    IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(shortcutLocation);
 
-        shortcut.Description = $"Shortcut for {shortcutName}";
-        shortcut.TargetPath = exePath;
-        shortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
-        shortcut.Save();
+    shortcut.Description = $"Shortcut for {shortcutName}";
+    shortcut.TargetPath = exePath;
+    shortcut.WorkingDirectory = Path.GetDirectoryName(exePath);
+    shortcut.Save();
 
-        Console.WriteLine($"Shortcut created: {shortcutLocation}");
-    }
+    Console.WriteLine($"Shortcut created: {shortcutLocation}");
+}
 
-    private static void ShowError(string message)
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine(message);
-        Console.ResetColor();
-    }
+private static void ShowError(string message)
+{
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine(message);
+    Console.ResetColor();
+}
 }
