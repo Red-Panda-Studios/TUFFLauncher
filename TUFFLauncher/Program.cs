@@ -175,6 +175,47 @@ class Program
         }
     }
 
+static async Task GenerateDataDiskFromInstalledBuild()
+{
+    var dirs = Directory.GetDirectories(_appFolder)
+        .Where(d => d.Contains("ToughCoded"))
+        .ToArray();
+
+    if (dirs.Length == 0)
+    {
+        ShowError("No installed builds found.");
+        return;
+    }
+
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine("\nInstalled Builds:");
+    Console.ResetColor();
+
+    for (int i = 0; i < dirs.Length; i++)
+    {
+        Console.WriteLine($"{i + 1}. {Path.GetFileName(dirs[i])}");
+    }
+
+    Console.Write("\nSelect build to generate DataDisk for: ");
+    if (int.TryParse(Console.ReadLine(), out int index) && index >= 1 && index <= dirs.Length)
+    {
+        string folderName = Path.GetFileName(dirs[index - 1]);
+
+        string version = folderName.StartsWith("ToughCoded")
+            ? folderName.Substring("ToughCoded".Length)
+            : folderName;
+
+        version = version.Trim('_').ToLower();
+
+        await WriteDataDisk(version);
+    }
+    else
+    {
+        ShowError("Invalid selection.");
+    }
+}
+
+
     static void UninstallBuild()
     {
         var dirs = Directory.GetDirectories(_appFolder)
@@ -294,8 +335,9 @@ class Program
         Console.WriteLine("✖. Download specific console build [Coming Soon]");
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("3. Download latest BroadcastServer build");
+        Console.WriteLine("4. Generate & Write DataDisk");
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("4. Exit");
+        Console.WriteLine("5. Exit");
         
         Console.ResetColor();
         Console.Write("\nChoose an option: ");
@@ -314,6 +356,9 @@ class Program
                 await InstallLatestBroadcastServer();
                 break;
             case "4":
+                await GenerateDataDiskFromInstalledBuild();
+                break;
+            case "5":
                 return;
             default:
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -556,77 +601,94 @@ static async Task DownloadBuild(string version, bool console)
         ShowError($"Download failed: {ex.Message}");
     }
 }
-
-static async Task DownloadRecordings(string version)
+static async Task WriteDataDisk(string version)
 {
-    string downloadUrl = $"https://wulfcode.dev/RedPandaStudios/ToughCoded/releases/download/{version}/hologrounds_recordings.zip";
-    string recordingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "AppData",
-        "LocalLow",
-        "LemonChili Games",
-        "ToughCodedNG",
-        "Recordings"
-    );
-    
-    Console.WriteLine($"\nDownloading: {downloadUrl}");
-
-    using HttpClient client = new HttpClient();
+    string[] lines = { "TUFFTECH-DATADISK", "TC-" + version };
+    string dataDiskPath = @"A:\DISK.txt";
 
     try
     {
-        using var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
-        response.EnsureSuccessStatusCode();
-
-        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-        var canReportProgress = totalBytes != -1;
-
-        string fileName = $"HologroundsRecordings{version}.zip";
-        string savePath = Path.Combine(recordingsPath, fileName);
-
-        Console.CursorVisible = false;
-
-        {
-            using var contentStream = await response.Content.ReadAsStreamAsync();
-            using var fileStream = File.Create(savePath);
-
-            var buffer = new byte[81920]; // 80 KB buffer
-            long totalRead = 0;
-            int read;
-
-            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-            {
-                await fileStream.WriteAsync(buffer, 0, read);
-                totalRead += read;
-
-                if (canReportProgress)
-                {
-                    DrawProgressBar(totalRead, totalBytes);
-                }
-            }
-        }
-
-        Console.WriteLine(); // Move to next line after progress bar
-        Console.CursorVisible = true;
-
+        File.WriteAllLines(dataDiskPath, lines);
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("Download complete.");
+        Console.WriteLine($"DISK.txt written successfully to {dataDiskPath}");
         Console.ResetColor();
-
-        string extractPath = Path.Combine(recordingsPath);
-
-        System.IO.Compression.ZipFile.ExtractToDirectory(savePath, extractPath, overwriteFiles: true);
-        Console.WriteLine("Extracted to: " + extractPath);
-        
-        // Delete the zip file after extraction
-        File.Delete(savePath);
-        Console.WriteLine("Cleaned up temporary install archive.");
     }
     catch (Exception ex)
     {
-        ShowError($"Download failed: {ex.Message}");
+        ShowError($"Failed to write to disk: {ex.Message}");
     }
 }
+
+    static async Task DownloadRecordings(string version)
+    {
+        string downloadUrl = $"https://wulfcode.dev/RedPandaStudios/ToughCoded/releases/download/{version}/hologrounds_recordings.zip";
+        string recordingsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "AppData",
+            "LocalLow",
+            "LemonChili Games",
+            "ToughCodedNG",
+            "Recordings"
+        );
+
+        Console.WriteLine($"\nDownloading: {downloadUrl}");
+
+        using HttpClient client = new HttpClient();
+
+        try
+        {
+            using var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+            var canReportProgress = totalBytes != -1;
+
+            string fileName = $"HologroundsRecordings{version}.zip";
+            string savePath = Path.Combine(recordingsPath, fileName);
+
+            Console.CursorVisible = false;
+
+            {
+                using var contentStream = await response.Content.ReadAsStreamAsync();
+                using var fileStream = File.Create(savePath);
+
+                var buffer = new byte[81920]; // 80 KB buffer
+                long totalRead = 0;
+                int read;
+
+                while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer, 0, read);
+                    totalRead += read;
+
+                    if (canReportProgress)
+                    {
+                        DrawProgressBar(totalRead, totalBytes);
+                    }
+                }
+            }
+
+            Console.WriteLine(); // Move to next line after progress bar
+            Console.CursorVisible = true;
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Download complete.");
+            Console.ResetColor();
+
+            string extractPath = Path.Combine(recordingsPath);
+
+            System.IO.Compression.ZipFile.ExtractToDirectory(savePath, extractPath, overwriteFiles: true);
+            Console.WriteLine("Extracted to: " + extractPath);
+
+            // Delete the zip file after extraction
+            File.Delete(savePath);
+            Console.WriteLine("Cleaned up temporary install archive.");
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Download failed: {ex.Message}");
+        }
+    }
 static void DrawProgressBar(long bytesRead, long totalBytes)
 {
     const int barSize = 50;
